@@ -4,36 +4,38 @@ from __future__ import print_function
 import rospy
 from ur5teleop.msg import daqdata
 from math import cos, pi
-import copy
 
 def callback(data,args):
     alpha,pub=args
-    angles_wrapped=angles(data)
+    angles_wrapped=angles(data)  # generate angles from reference voltage and encoder voltage
+    angles_unwrapped=unwrap(angles_wrapped)  # generate unwrapped angles
+
+def unwrap(angles_wrapped):
     try:
-        prevangles_w,prevangles_uw,prevtime=callback.prev #if this fails it is the first iteration
+        prevangles_w, prevangles_uw= unwrap.prev  # if this fails it is the first iteration
     except:
-        angles_unwrapped=angles_wrapped
+        angles_unwrapped = angles_wrapped
     else:
-        angles_unwrapped=[]
+        angles_unwrapped = []
         for i in range(6):
-            dtheta=prevangles_w[i]-angles_wrapped[i]
-            if dtheta > pi: #adding to rotation
-                change=1
-            elif dtheta < -pi: #subtracting from the rotation
-                change=-1
+            dtheta = prevangles_w[i] - angles_wrapped[i]
+            if dtheta > pi:  # adding to rotation
+                change = 1
+            elif dtheta < -pi:  # subtracting from the rotation
+                change = -1
             else:
-                change=0
-            rots=int(prevangles_uw[i]/(2*pi))+change
+                change = 0
+            rots = int(prevangles_uw[i] / (2 * pi)) + change
             if prevangles_uw[i] < 0:
-                rots -=1
-            unwrapped=rots*2*pi+angles_wrapped[i]
-            if unwrapped > prevangles_uw[i]+pi:
-                rots -=1
-            if unwrapped < prevangles_uw[i]-pi:
-                rots+=1
-            angles_unwrapped.append(rots*2*pi+angles_wrapped[i])
-    callback.prev=(angles_wrapped,angles_unwrapped,data.sptime)
-    print(angles_unwrapped[0]*360/(2*pi))
+                rots -= 1
+            unwrapped = rots * 2 * pi + angles_wrapped[i]
+            if unwrapped > prevangles_uw[i] + pi:
+                rots -= 1
+            if unwrapped < prevangles_uw[i] - pi:
+                rots += 1
+            angles_unwrapped.append(rots * 2 * pi + angles_wrapped[i])
+    unwrap.prev = (angles_wrapped, angles_unwrapped)
+    return angles_unwrapped
 
 def angles(data):
     ref=data.ref
