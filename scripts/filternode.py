@@ -4,11 +4,27 @@ from __future__ import print_function
 import rospy
 from ur5teleop.msg import daqdata
 from math import cos, pi
+from geometry_msgs.msg import Vector3
 
 def callback(data,args):
     alpha,pub=args
+    sptime = rospy.Time.now()
     angles_wrapped=angles(data)  # generate angles from reference voltage and encoder voltage
     angles_unwrapped=unwrap(angles_wrapped)  # generate unwrapped angles
+    angles_filtered=lowpass(angles_unwrapped,alpha)
+    pub.publish(angles_filtered[0],angles_unwrapped[0], 1225.0001)
+def lowpass(vals, alpha):
+    try:
+        prev_filter_vals=lowpass.prev
+    except:
+        prev_filter_vals=vals
+
+    filtered_vals=[]
+    for i in range(6):
+        filtered=alpha*vals[i]+(1-alpha)*prev_filter_vals[i]
+        filtered_vals.append(filtered)
+    lowpass.prev=filtered_vals
+    return filtered_vals
 
 def unwrap(angles_wrapped):
     try:
@@ -58,7 +74,7 @@ def listener():
     fs=100 # sample freq in hz
     fc=10 #corner freq in hz
     alpha=alphacalc(fs,fc)
-    pub = rospy.Publisher('daqdata_filtered', daqdata, queue_size=10)
+    pub = rospy.Publisher('daqdata_filtered', Vector3 , queue_size=10)
     rospy.init_node('filter')
     rospy.Subscriber("daqdata_raw", daqdata, callback,(alpha,pub))
 
