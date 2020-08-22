@@ -1,8 +1,8 @@
 time sptime
-joint encoder1
-joint encoder2
-joint encoder3
-joint encoder4
-joint encoder5
-joint encoder6
+Joint encoder1
+Joint encoder2
+Joint encoder3
+Joint encoder4
+Joint encoder5
+Joint encoder6
 
