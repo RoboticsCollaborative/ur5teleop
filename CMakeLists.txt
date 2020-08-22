@@ -52,7 +52,7 @@ find_package(catkin REQUIRED COMPONENTS
 add_message_files(
   FILES
   daqdata.msg
-  joint.msg
+  Joint.msg
   jointdata.msg
 )
 
