@@ -2,27 +2,50 @@
 from __future__ import print_function
 
 import rospy
-from ur5teleop.msg import daqdata
+from ur5teleop.msg import daqdata, jointdata
 from math import cos, tan, pi
 from geometry_msgs.msg import Vector3
 
 
 def callback(data, args):
     pub, coeffs = args
-    #sptime = rospy.Time.now() - data.sptime
     angles_wrapped = angles(data)  # generate angles from reference voltage and encoder voltage
     angles_unwrapped = unwrap(angles_wrapped)  # generate unwrapped angles
     angles_filtered = lowpass2(angles_unwrapped, coeffs)
-    angular_vels=getvelocity(angles_filtered,data.sptime)
-    print(angular_vels[0],angles_filtered[0])
-    #print(sptime.secs)
-    #pub.publish(angles_filtered[0], angles_unwrapped[0], 1225.0001)
+    angular_vels,dtsecs=getvelocity(angles_filtered,data.sptime)
+    message=pubprep(angles_filtered,angular_vels,data.sptime,dtsecs)
+    pub.publish(message)
+def pubprep(angles,vels,sptime,dtsecs):
+    msg=jointdata()
+
+    msg.sptime=sptime
+    msg.dt=dtsecs
+    msg.encoder1.pos=angles[0]
+    msg.encoder1.vel=vels[0]
+
+    msg.encoder2.pos=angles[1]
+    msg.encoder2.vel=vels[1]
+
+    msg.encoder3.pos=angles[2]
+    msg.encoder3.vel=vels[2]
+
+    msg.encoder4.pos=angles[3]
+    msg.encoder4.vel=vels[3]
+
+    msg.encoder5.pos=angles[4]
+    msg.encoder5.vel=vels[4]
+
+    msg.encoder6.pos=angles[5]
+    msg.encoder6.vel=vels[5]
+
+    return msg
 
 def getvelocity(angles, sptime):
     try:
         prev_angles,prev_sptime=getvelocity.prev
     except:
         velocity=[0]*6
+        dtsecs=0
     else:
         dt=sptime-prev_sptime
         dtsecs=dt.secs+dt.nsecs*1e-9
@@ -32,7 +55,7 @@ def getvelocity(angles, sptime):
             vel=dtheta/dtsecs
             velocity.append(vel)
     getvelocity.prev=(angles,sptime)
-    return velocity
+    return (velocity,dtsecs)
 
 
 
@@ -105,7 +128,7 @@ def listener():
     fs = 100  # sample freq in hz
     fc = 5  # corner freq in hz
     coeffs = filtercoeffs(fs, fc)
-    pub = rospy.Publisher('daqdata_filtered', Vector3, queue_size=10)
+    pub = rospy.Publisher('daqdata_filtered',jointdata, queue_size=10)
     rospy.init_node('filter')
     rospy.Subscriber("daqdata_raw", daqdata, callback, (pub, coeffs))
 
