@@ -8,13 +8,35 @@ from geometry_msgs.msg import Vector3
 
 
 def callback(data, args):
-    alpha, pub, coeffs = args
-    sptime = rospy.Time.now()
+    pub, coeffs = args
+    #sptime = rospy.Time.now() - data.sptime
     angles_wrapped = angles(data)  # generate angles from reference voltage and encoder voltage
     angles_unwrapped = unwrap(angles_wrapped)  # generate unwrapped angles
-    # angles_filtered = lowpass1(angles_unwrapped, alpha)
     angles_filtered = lowpass2(angles_unwrapped, coeffs)
-    pub.publish(angles_filtered[0], angles_unwrapped[0], 1225.0001)
+    angular_vels=getvelocity(angles_filtered,data.sptime)
+    print(angular_vels[0],angles_filtered[0])
+    #print(sptime.secs)
+    #pub.publish(angles_filtered[0], angles_unwrapped[0], 1225.0001)
+
+def getvelocity(angles, sptime):
+    try:
+        prev_angles,prev_sptime=getvelocity.prev
+    except:
+        velocity=[0]*6
+    else:
+        dt=sptime-prev_sptime
+        dtsecs=dt.secs+dt.nsecs*1e-9
+        velocity=[]
+        for i in range(6):
+            dtheta=angles[i]-prev_angles[i]
+            vel=dtheta/dtsecs
+            velocity.append(vel)
+    getvelocity.prev=(angles,sptime)
+    return velocity
+
+
+
+
 
 
 def lowpass2(vals, coeffs):
@@ -32,21 +54,6 @@ def lowpass2(vals, coeffs):
     prev_vals=[vals,prev_vals[0]]
     lowpass2.prev=(prev_filter_vals,prev_vals)
     return filtered_vals
-
-
-def lowpass1(vals, alpha):
-    try:
-        prev_filter_vals = lowpass1.prev
-    except:
-        prev_filter_vals = vals
-
-    filtered_vals = []
-    for i in range(6):
-        filtered = alpha * vals[i] + (1 - alpha) * prev_filter_vals[i]
-        filtered_vals.append(filtered)
-    lowpass1.prev = filtered_vals
-    return filtered_vals
-
 
 def unwrap(angles_wrapped):
     try:
@@ -97,11 +104,10 @@ def angles(data):
 def listener():
     fs = 100  # sample freq in hz
     fc = 5  # corner freq in hz
-    alpha = alphacalc(fs, fc)
     coeffs = filtercoeffs(fs, fc)
     pub = rospy.Publisher('daqdata_filtered', Vector3, queue_size=10)
     rospy.init_node('filter')
-    rospy.Subscriber("daqdata_raw", daqdata, callback, (alpha, pub, coeffs))
+    rospy.Subscriber("daqdata_raw", daqdata, callback, (pub, coeffs))
 
     # spin() simply keeps python from exiting until this node is stopped
     rospy.spin()
@@ -122,10 +128,6 @@ def filtercoeffs(fs, fc):
     coeffs = ([b0, b1, b2], [a1, a2])
     return coeffs
 
-
-def alphacalc(fs, fc):
-    alpha = cos(2 * pi * fc / fs) - 1 + (cos(2 * pi * fc / fs) ** 2 - 4 * cos(2 * pi * fc / fs) + 3) ** 0.5
-    return alpha
 
 
 if __name__ == '__main__':
