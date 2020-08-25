@@ -3,17 +3,28 @@ from __future__ import print_function
 
 import rospy
 from ur5teleop.msg import daqdata, jointdata
-from math import cos, tan, pi
+from math import tan, pi
 
 
-def callback(data, args):
-    pub, coeffs, fcdef = args #fcdef is the default corner frequency
+def callback(data, pub):
     angles_wrapped = angles(data)  # generate angles from reference voltage and encoder voltage
     angles_unwrapped = unwrap(angles_wrapped)  # generate unwrapped angles
-    angles_filtered = lowpass2(angles_unwrapped, coeffs, fcdef)
-    angular_vels,dtsecs=getvelocity(angles_filtered,data.sptime)
-    message=pubprep(angles_filtered,angular_vels,data.sptime,dtsecs)
+    dt=getdt(data.sptime)
+    angles_filtered = lowpass2(angles_unwrapped,dt)
+    angular_vels=getvelocity(angles_filtered,dt)
+    message=pubprep(angles_filtered,angular_vels,data.sptime,dt)
     pub.publish(message)
+
+def getdt(sptime):
+    try:
+        prev_sptime=getdt.prev
+    except:
+        dtsecs=0
+    else:
+        dt=sptime-prev_sptime
+        dtsecs = dt.secs + dt.nsecs * 1e-9
+    getdt.prev=sptime
+    return dtsecs
 
 
 def pubprep(angles,vels,sptime,dtsecs):
@@ -41,34 +52,27 @@ def pubprep(angles,vels,sptime,dtsecs):
 
     return msg
 
-def getvelocity(angles, sptime):
+
+def getvelocity(angles, dt):
     try:
-        prev_angles,prev_sptime=getvelocity.prev
+        prev_angles=getvelocity.prev
     except:
         velocity=[0]*6
-        dtsecs=0
     else:
-        dt=sptime-prev_sptime
-        dtsecs=dt.secs+dt.nsecs*1e-9
         velocity=[]
         for i in range(6):
             dtheta=angles[i]-prev_angles[i]
-            vel=dtheta/dtsecs
+            vel=dtheta/dt
             velocity.append(vel)
-    getvelocity.prev=(angles,sptime)
-    return (velocity,dtsecs)
+    getvelocity.prev=angles
+    return velocity
 
 
-
-
-
-
-def lowpass2(vals, coeffs, fcdef):
+def lowpass2(vals,dt):
     fc = rospy.get_param('corner_frequency')
-    if fc != fcdef:
-        coeffs=filtercoeffs(100,fc)
-
-    b,a=coeffs
+    if dt==0:
+        dt=0.01
+    b,a=filtercoeffs(dt,fc)
     try:
         prev_filter_vals,prev_vals=lowpass2.prev
     except:
@@ -82,6 +86,7 @@ def lowpass2(vals, coeffs, fcdef):
     prev_vals=[vals,prev_vals[0]]
     lowpass2.prev=(prev_filter_vals,prev_vals)
     return filtered_vals
+
 
 def unwrap(angles_wrapped):
     try:
@@ -129,22 +134,8 @@ def angles(data):
     return angles
 
 
-def listener():
-    fs = 100  # sample freq in hz
-    fc=5.0 # default corner frequency
-    rospy.set_param('corner_frequency',fc) # sets the default filter corner frequency param
-    coeffs = filtercoeffs(fs, fc)
-    pub = rospy.Publisher('daqdata_filtered',jointdata, queue_size=10)
-    rospy.init_node('filter')
-    rospy.Subscriber("daqdata_raw", daqdata, callback, (pub, coeffs, fc))
-
-    # spin() simply keeps python from exiting until this node is stopped
-    rospy.spin()
-
-
-def filtercoeffs(fs, fc):
+def filtercoeffs(Ts, fc):
     zeta = 2 ** 0.5 / 2
-    Ts = 1 / float(fs)
     w0 = 2 * pi * fc
     K = w0 / tan(w0 * Ts / 2)
     phi = K ** 2 + 2 * zeta * w0 * K + w0 ** 2
@@ -157,6 +148,16 @@ def filtercoeffs(fs, fc):
     coeffs = ([b0, b1, b2], [a1, a2])
     return coeffs
 
+
+def listener():
+    fc=5.0 # default corner frequency
+    rospy.set_param('corner_frequency',fc) # sets the default filter corner frequency param
+    pub = rospy.Publisher('daqdata_filtered',jointdata, queue_size=10)
+    rospy.init_node('filter')
+    rospy.Subscriber("daqdata_raw", daqdata, callback, pub)
+
+    # spin() simply keeps python from exiting until this node is stopped
+    rospy.spin()
 
 
 if __name__ == '__main__':
