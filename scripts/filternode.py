@@ -69,10 +69,18 @@ def getvelocity(angles, dt):
 
 
 def lowpass2(vals,dt):
-    fc = rospy.get_param('corner_frequency')
-    if dt==0:
-        dt=0.01
-    b,a=filtercoeffs(dt,fc)
+    fc_param = rospy.get_param('/frequency/corner')
+    if not hasattr(callback,'fs'):
+        lowpass2.fs=rospy.get_param('/frequency/sample')
+        lowpass2.fc=fc_param
+        lowpass2.coeffs=filtercoeffs(lowpass2.fs,lowpass2.fc)
+
+    if fc_param != lowpass2.fc:
+        lowpass2.fc = fc_param
+        lowpass2.coeffs=filtercoeffs(lowpass2.fs,lowpass2.fc)
+
+    b,a=lowpass2.coeffs
+
     try:
         prev_filter_vals,prev_vals=lowpass2.prev
     except:
@@ -134,7 +142,8 @@ def angles(data):
     return angles
 
 
-def filtercoeffs(Ts, fc):
+def filtercoeffs(fs, fc):
+    Ts=1/float(fs)
     zeta = 2 ** 0.5 / 2
     w0 = 2 * pi * fc
     K = w0 / tan(w0 * Ts / 2)
@@ -150,12 +159,11 @@ def filtercoeffs(Ts, fc):
 
 
 def listener():
-    fc=5.0 # default corner frequency
-    rospy.set_param('corner_frequency',fc) # sets the default filter corner frequency param
+    fc=rospy.get_param('/frequency/corner',default=5.0) # default corner frequency in Hz unless set by parameter prestartup
+    rospy.set_param('/frequency/corner',fc) # sets the default filter corner frequency param
     pub = rospy.Publisher('daqdata_filtered',jointdata, queue_size=10)
     rospy.init_node('filter')
     rospy.Subscriber("daqdata_raw", daqdata, callback, pub)
-
     # spin() simply keeps python from exiting until this node is stopped
     rospy.spin()
 
