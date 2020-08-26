@@ -13,7 +13,7 @@ from ur5teleop.msg import daqdata
 
 
 def talker():
-    pub = rospy.Publisher('daqdata_raw', daqdata, queue_size=10)
+    pub = rospy.Publisher('daqdata_raw', daqdata, queue_size=1)
     rospy.init_node('daqnode')
     fs=rospy.get_param("/frequency/sample", default=100.0) # default sample freqency in hz unless defined presartup parameter
     rospy.set_param("/frequency/sample",fs)

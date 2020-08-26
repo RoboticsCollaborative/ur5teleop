@@ -161,7 +161,7 @@ def filtercoeffs(fs, fc):
 def listener():
     fc=rospy.get_param('/frequency/corner',default=5.0) # default corner frequency in Hz unless set by parameter prestartup
     rospy.set_param('/frequency/corner',fc) # sets the default filter corner frequency param
-    pub = rospy.Publisher('daqdata_filtered',jointdata, queue_size=10)
+    pub = rospy.Publisher('daqdata_filtered',jointdata, queue_size=1)
     rospy.init_node('filter')
     rospy.Subscriber("daqdata_raw", daqdata, callback, pub)
     # spin() simply keeps python from exiting until this node is stopped
