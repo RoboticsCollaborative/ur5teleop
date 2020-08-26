@@ -10,7 +10,7 @@ def callback(data, pub):
     angles_wrapped = angles(data)  # generate angles from reference voltage and encoder voltage
     angles_unwrapped = unwrap(angles_wrapped)  # generate unwrapped angles
     dt=getdt(data.sptime)
-    angles_filtered = lowpass2(angles_unwrapped,dt)
+    angles_filtered = lowpass2(angles_unwrapped)
     angular_vels=getvelocity(angles_filtered,dt)
     message=pubprep(angles_filtered,angular_vels,data.sptime,dt)
     pub.publish(message)
@@ -68,9 +68,9 @@ def getvelocity(angles, dt):
     return velocity
 
 
-def lowpass2(vals,dt):
+def lowpass2(vals):
     fc_param = rospy.get_param('/frequency/corner')
-    if not hasattr(callback,'fs'):
+    if not hasattr(lowpass2,'fs'):
         lowpass2.fs=rospy.get_param('/frequency/sample')
         lowpass2.fc=fc_param
         lowpass2.coeffs=filtercoeffs(lowpass2.fs,lowpass2.fc)
