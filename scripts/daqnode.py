@@ -17,7 +17,8 @@ def talker():
     rospy.init_node('daqnode')
     fs=rospy.get_param("/frequency/sample", default=100.0) # default sample freqency in hz unless defined presartup parameter
     rospy.set_param("/frequency/sample",fs)
-    rospy.set_param("/frequency/corner", 5.0) # default corner frequency
+    fc=rospy.get_param("/frequency/corner", default=5.0)# default corner frequency
+    rospy.set_param("/frequency/corner",fc)
 
 
 
