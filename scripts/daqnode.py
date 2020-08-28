@@ -11,6 +11,7 @@ from uldaq import (get_daq_device_inventory, DaqDevice, InterfaceType,
 import rospy
 from ur5teleop.msg import daqdata, jointdata
 from math import tan, pi
+from multiprocessing import Process, Value
 
 def talker():
     pub = rospy.Publisher('daqdata_filtered', jointdata, queue_size=1)
@@ -102,7 +103,9 @@ def talker():
         print('connected to DAQ and starting publish node')
         time1=rospy.Time.now()
         time2=rospy.Time.now()
-
+        fc_param=Value('d',rospy.get_param('/frequency/corner'))
+        p = Process(target=cornerval, args=(fc_param, 0))
+        p.start()
         while not rospy.is_shutdown():
             class data:
                 sptime= rospy.Time.now()
@@ -116,7 +119,9 @@ def talker():
             angles_wrapped = angles(data)
             angles_unwrapped = unwrap(angles_wrapped)  # generate unwrapped angles
             dt = getdt(data.sptime)
-            angles_filtered = lowpass2(angles_unwrapped, fs)
+            time1 = rospy.Time.now()
+            angles_filtered = lowpass2(angles_unwrapped, fs,fc_param)
+            time2 = rospy.Time.now()
             angular_vels = getvelocity(angles_filtered, dt)
             diff = time2 - time1
             message = pubprep(angles_filtered, angular_vels, data.sptime, diff.nsecs*1e-9)
@@ -128,6 +133,11 @@ def talker():
             if daq_device.is_connected():
                 daq_device.disconnect()
             daq_device.release()
+
+def cornerval(fc_param,extra):
+    while not rospy.is_shutdown():
+        fc_param.value=rospy.get_param('/frequency/corner')
+        sleep(0.8)
 
 def getdt(sptime):
     try:
@@ -182,8 +192,8 @@ def getvelocity(angles, dt):
     return velocity
 
 
-def lowpass2(vals,fs):
-    fc_param = rospy.get_param('/frequency/corner')
+def lowpass2(vals,fs,param):
+    fc_param = param.value
     if not hasattr(lowpass2,'fs'):
         lowpass2.fs=fs
         lowpass2.fc=fc_param
