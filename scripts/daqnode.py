@@ -100,6 +100,9 @@ def talker():
         #
         # system('clear')
         print('connected to DAQ and starting publish node')
+        time1=rospy.Time.now()
+        time2=rospy.Time.now()
+
         while not rospy.is_shutdown():
             class data:
                 sptime= rospy.Time.now()
@@ -110,13 +113,13 @@ def talker():
                 encoder4= ai_device.a_in(4, input_mode, ranges[range_index],AInFlag.DEFAULT)
                 encoder5= ai_device.a_in(5, input_mode, ranges[range_index],AInFlag.DEFAULT)
                 encoder6= ai_device.a_in(6, input_mode, ranges[range_index],AInFlag.DEFAULT)
-
             angles_wrapped = angles(data)
             angles_unwrapped = unwrap(angles_wrapped)  # generate unwrapped angles
             dt = getdt(data.sptime)
             angles_filtered = lowpass2(angles_unwrapped, fs)
             angular_vels = getvelocity(angles_filtered, dt)
-            message = pubprep(angles_filtered, angular_vels, data.sptime, dt)
+            diff = time2 - time1
+            message = pubprep(angles_filtered, angular_vels, data.sptime, diff.nsecs*1e-9)
             pub.publish(message)
             rate.sleep()
 
