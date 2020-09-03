@@ -100,6 +100,7 @@ def talker():
         #
         # system('clear')
         print('connected to DAQ and starting publish node')
+
         while not rospy.is_shutdown():
             class data:
                 sptime= rospy.Time.now()
@@ -114,7 +115,7 @@ def talker():
             angles_wrapped = angles(data)
             angles_unwrapped = unwrap(angles_wrapped)  # generate unwrapped angles
             dt = getdt(data.sptime)
-            angles_filtered = lowpass2(angles_unwrapped, fs)
+            angles_filtered = lowpass2(angles_unwrapped, fs, fc)
             angular_vels = getvelocity(angles_filtered, dt)
             message = pubprep(angles_filtered, angular_vels, data.sptime, dt)
             pub.publish(message)
@@ -179,16 +180,9 @@ def getvelocity(angles, dt):
     return velocity
 
 
-def lowpass2(vals,fs):
-    fc_param = rospy.get_param('/frequency/corner')
-    if not hasattr(lowpass2,'fs'):
-        lowpass2.fs=fs
-        lowpass2.fc=fc_param
-        lowpass2.coeffs=filtercoeffs(lowpass2.fs,lowpass2.fc)
-
-    if fc_param != lowpass2.fc:
-        lowpass2.fc = fc_param
-        lowpass2.coeffs=filtercoeffs(lowpass2.fs,lowpass2.fc)
+def lowpass2(vals,fs,fc):
+    if not hasattr(lowpass2,'coeffs'):
+        lowpass2.coeffs=filtercoeffs(fs,fc)
 
     b,a=lowpass2.coeffs
 
