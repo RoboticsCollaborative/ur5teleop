@@ -117,6 +117,7 @@ def talker():
             dt = getdt(data.sptime)
             angles_filtered = lowpass2(angles_unwrapped, fs, fc)
             angular_vels = getvelocity(angles_filtered, dt)
+            angular_vels_filtered = lowpass2vel(angular_vels, fs, fc)
             message = pubprep(angles_filtered, angular_vels, data.sptime, dt)
             pub.publish(message)
             rate.sleep()
@@ -198,6 +199,27 @@ def lowpass2(vals,fs,fc):
     prev_filter_vals=[filtered_vals,prev_filter_vals[0]]
     prev_vals=[vals,prev_vals[0]]
     lowpass2.prev=(prev_filter_vals,prev_vals)
+    return filtered_vals
+
+
+def lowpass2vel(vals,fs,fc):
+    if not hasattr(lowpass2vel,'coeffs'):
+        lowpass2vel.coeffs=filtercoeffs(fs,fc)
+
+    b,a=lowpass2vel.coeffs
+
+    try:
+        prev_filter_vals,prev_vals=lowpass2vel.prev
+    except:
+        prev_filter_vals=[vals,vals]
+        prev_vals=[vals,vals]
+    filtered_vals=[]
+    for i in range(6):
+        filtered=b[0]*vals[i]+ b[1]*prev_vals[0][i] + b[2]*prev_vals[1][i]- a[0]*prev_filter_vals[0][i] - a[1]*prev_filter_vals[1][i]
+        filtered_vals.append(filtered)
+    prev_filter_vals=[filtered_vals,prev_filter_vals[0]]
+    prev_vals=[vals,prev_vals[0]]
+    lowpass2vel.prev=(prev_filter_vals,prev_vals)
     return filtered_vals
 
 
