@@ -6,7 +6,7 @@ from os import system
 from sys import stdout
 
 from uldaq import (get_daq_device_inventory, DaqDevice, InterfaceType,
-                   AiInputMode, AInFlag)
+                   DigitalDirection, AiInputMode, AInFlag)
 
 import rospy
 from ur5teleop.msg import daqdata, jointdata
@@ -62,13 +62,21 @@ def talker():
         if ai_device is None:
             raise RuntimeError('Error: The DAQ device does not support '
                                'analog input')
-
+        # Get the DioDevice object and verify that it is valid.
+        dio_device = daq_device.get_dio_device()
+        if dio_device is None:
+            raise RuntimeError('Error: The DAQ device does not support digital '
+                               'input')
         # Establish a connection to the DAQ device.
         descriptor = daq_device.get_descriptor()
         #print('\nConnecting to', descriptor.dev_string, '- please wait...')
         # For Ethernet devices using a connection_code other than the default
         # value of zero, change the line below to enter the desired code.
         daq_device.connect(connection_code=0)
+
+        #############################
+        #Input setup for analog
+        #############################
 
         ai_info = ai_device.get_info()
 
@@ -88,6 +96,21 @@ def talker():
         if range_index >= len(ranges):
             range_index = len(ranges) - 1
 
+        #############################
+        #Input setup for digital
+        #############################
+        dio_info = dio_device.get_info()
+        port_types = dio_info.get_port_types()
+
+        port_to_read = port_types[0] #reading bits from port A (pins 21-28)
+
+        # Get the port I/O type and the number of bits for the first port.
+        port_info = dio_info.get_port_info(port_to_read)
+
+        # configure the entire port for input.
+
+        dio_device.d_config_port(port_to_read, DigitalDirection.INPUT)
+
         # print('\n', descriptor.dev_string, ' ready', sep='')
         # print('    Function demonstrated: ai_device.a_in()')
         # print('    Channels: ', low_channel, '-', high_channel)
@@ -104,6 +127,7 @@ def talker():
         while not rospy.is_shutdown():
             class data:
                 sptime= rospy.Time.now()
+                # analog inputs
                 ref= ai_device.a_in(0, input_mode, ranges[range_index],AInFlag.DEFAULT)
                 encoder1= ai_device.a_in(1, input_mode, ranges[range_index],AInFlag.DEFAULT)
                 encoder2= ai_device.a_in(2, input_mode, ranges[range_index],AInFlag.DEFAULT)
@@ -111,6 +135,17 @@ def talker():
                 encoder4= ai_device.a_in(4, input_mode, ranges[range_index],AInFlag.DEFAULT)
                 encoder5= ai_device.a_in(5, input_mode, ranges[range_index],AInFlag.DEFAULT)
                 encoder6= ai_device.a_in(6, input_mode, ranges[range_index],AInFlag.DEFAULT)
+
+            class buttons: #holds the digital inputs
+                button1=dio_device.d_bit_in(port_to_read,0)
+                #button2=dio_device.d_bit_in(port_to_read,1)
+                #button3=dio_device.d_bit_in(port_to_read,2)
+                #button4=dio_device.d_bit_in(port_to_read,3)
+                #button5=dio_device.d_bit_in(port_to_read,4)
+                #button6=dio_device.d_bit_in(port_to_read,5)
+                #button7=dio_device.d_bit_in(port_to_read,6)
+                #button8=dio_device.d_bit_in(port_to_read,7)
+            print(buttons.button1)
 
             angles_wrapped = angles(data)
             angles_unwrapped = unwrap(angles_wrapped)  # generate unwrapped angles
