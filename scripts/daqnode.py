@@ -17,8 +17,9 @@ def talker():
     rospy.init_node('daqnode')
     fs=rospy.get_param("/frequency/sample", default=100.0) # default sample freqency in hz unless defined presartup parameter
     rospy.set_param("/frequency/sample",fs)
-    fc=rospy.get_param("/frequency/corner", default=5.0)# default corner frequency
+    fc=rospy.get_param("/frequency/corner", default=[2.0, 2.0, 2.0, 5.0, 5.0, 5.0])# default corner frequency
     rospy.set_param("/frequency/corner",fc)
+
 
 
 
@@ -182,9 +183,11 @@ def getvelocity(angles, dt):
 
 def lowpass2(vals,fs,fc):
     if not hasattr(lowpass2,'coeffs'):
-        lowpass2.coeffs=filtercoeffs(fs,fc)
+        lowpass2.coeffs=[filtercoeffs(fs,fc[i]) for i in range(6)]
 
-    b,a=lowpass2.coeffs
+    # b,a=lowpass2.coeffs
+    b = [lowpass2.coeffs[i][0] for i in range(6)]
+    a = [lowpass2.coeffs[i][1] for i in range(6)]
 
     try:
         prev_filter_vals,prev_vals=lowpass2.prev
@@ -193,7 +196,7 @@ def lowpass2(vals,fs,fc):
         prev_vals=[vals,vals]
     filtered_vals=[]
     for i in range(6):
-        filtered=b[0]*vals[i]+ b[1]*prev_vals[0][i] + b[2]*prev_vals[1][i]- a[0]*prev_filter_vals[0][i] - a[1]*prev_filter_vals[1][i]
+        filtered=b[i][0]*vals[i]+ b[i][1]*prev_vals[0][i] + b[i][2]*prev_vals[1][i]- a[i][0]*prev_filter_vals[0][i] - a[i][1]*prev_filter_vals[1][i]
         filtered_vals.append(filtered)
     prev_filter_vals=[filtered_vals,prev_filter_vals[0]]
     prev_vals=[vals,prev_vals[0]]
