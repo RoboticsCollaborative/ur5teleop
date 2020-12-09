@@ -12,8 +12,11 @@ import rospy
 from ur5teleop.msg import daqdata, jointdata
 from math import tan, pi
 
+from std_msgs.msg import Bool
+
 def talker():
     pub = rospy.Publisher('daqdata_filtered', jointdata, queue_size=1)
+    deadman_pub = rospy.Publisher('enable_move', Bool, queue_size=1)
     rospy.init_node('daqnode')
     fs=rospy.get_param("/frequency/sample", default=100.0) # default sample freqency in hz unless defined presartup parameter
     rospy.set_param("/frequency/sample",fs)
@@ -145,8 +148,8 @@ def talker():
                 #button6=dio_device.d_bit_in(port_to_read,5)
                 #button7=dio_device.d_bit_in(port_to_read,6)
                 #button8=dio_device.d_bit_in(port_to_read,7)
-            print(buttons.button1)
-
+            
+            deadman_pub.publish(Bool(data= not buttons.button1))
             angles_wrapped = angles(data)
             angles_unwrapped = unwrap(angles_wrapped)  # generate unwrapped angles
             dt = getdt(data.sptime)
