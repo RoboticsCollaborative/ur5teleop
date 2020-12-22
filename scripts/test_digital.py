@@ -110,6 +110,7 @@ class encoder_node():
     low_encoder = 0
     encoder_count = 2
     sample_rate = 1000.0  # Hz
+    scan_counts_to_seconds = 1/sample_rate
     samples_per_channel = 10000
     scan_options = ScanOption.CONTINUOUS
     scan_flags = CInScanFlag.DEFAULT
@@ -214,6 +215,7 @@ class encoder_node():
 
         self.status, transfer_status = self.ctr_device.get_scan_status()
         index = transfer_status.current_index
+        self.last_external_read_time = transfer_status.current_scan_count * scan_counts_to_seconds
         self.last_read_time = rospy.Time.now()
         self.counts = np.array([self.data[index + encoder_index] for encoder_index in self.encoders])
         self.positions = np.array(unwrap(counts_to_position(self.counts)))
@@ -221,19 +223,21 @@ class encoder_node():
             self.rate.sleep()
             self.status, transfer_status = self.ctr_device.get_scan_status()
             index = transfer_status.current_index
+            external_read_time = transfer_status.current_scan_count * scan_counts_to_seconds
             read_time = rospy.Time.now()
             counts = np.array([self.data[index + encoder_index] for encoder_index in self.encoders])
             positions = np.array(unwrap(counts_to_position(counts)))
 
             dt = read_time - self.last_read_time
             dt_seconds = dt.secs + dt.nsecs * 1e-9
-
+            dt_seconds_external = external_read_time - self.last_external_read_time
 
             velocities = (positions-self.positions)/dt_seconds
             # j_data = jointdata()
             self.pub.publish(pubprep(positions, velocities, read_time, dt_seconds))
             # print(counts[0],counts_to_position(counts)[0],positions[0])
             self.last_read_time = read_time
+            self.last_external_read_time = external_read_time
             self.positions = positions
             self.counts = counts
 
