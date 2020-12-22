@@ -215,7 +215,7 @@ class encoder_node():
 
         self.status, transfer_status = self.ctr_device.get_scan_status()
         index = transfer_status.current_index
-        self.last_external_read_time = transfer_status.current_scan_count * scan_counts_to_seconds
+        self.last_external_read_time = transfer_status.current_scan_count * self.scan_counts_to_seconds
         self.last_read_time = rospy.Time.now()
         self.counts = np.array([self.data[index + encoder_index] for encoder_index in self.encoders])
         self.positions = np.array(unwrap(counts_to_position(self.counts)))
@@ -223,11 +223,11 @@ class encoder_node():
             self.rate.sleep()
             self.status, transfer_status = self.ctr_device.get_scan_status()
             index = transfer_status.current_index
-            external_read_time = transfer_status.current_scan_count * scan_counts_to_seconds
+            external_read_time = transfer_status.current_scan_count * self.scan_counts_to_seconds
             read_time = rospy.Time.now()
             counts = np.array([self.data[index + encoder_index] for encoder_index in self.encoders])
             positions = np.array(unwrap(counts_to_position(counts)))
-
+            print(counts[0])
             dt = read_time - self.last_read_time
             dt_seconds = dt.secs + dt.nsecs * 1e-9
             dt_seconds_external = external_read_time - self.last_external_read_time

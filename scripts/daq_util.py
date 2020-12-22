@@ -122,7 +122,7 @@ class PythonFilter:
         x_f : vector of filtered values, 1D list with shape = x.shape'''
         x_f = []
         for i in range(6):
-            x_f.append(self.b[0][i]*x + self.b[1][i]*self.previous_values[0][i] + \
+            x_f.append(self.b[0][i]*x[i] + self.b[1][i]*self.previous_values[0][i] + \
             self.b[2][i]*self.previous_values[1][i] - self.a[0][i]*self.previous_filtered_values[0][i] - \
             self.a[1][i]*self.previous_filtered_values[1][i])
 

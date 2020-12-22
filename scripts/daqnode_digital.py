@@ -54,7 +54,8 @@ class encoder_node():
 
     fc = [10.0, 10.0, 10.0, 10.0, 10.0, 10.0]
     fs = sample_rate
-    filter = NumpyFilter(fc,fs)
+    filter = PythonFilter(fc,fs)
+    # filter = NumpyFilter(fc,fs)
 
     def __init__(self):
         rospy.on_shutdown(self.safe_shutdown)
