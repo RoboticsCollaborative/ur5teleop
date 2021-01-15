@@ -1,17 +1,13 @@
 #!/usr/bin/env python
 
-from __future__ import print_function
-from time import sleep
-# from os import system
-# from sys import stdout
-
+import rospy
+from std_msgs.msg import Bool
 from uldaq import (get_daq_device_inventory, DaqDevice, InterfaceType,
                    DigitalDirection, AiInputMode, AInFlag)
 
-import rospy
-# from ur5teleop.msg import daqdata, jointdata
-# from math import tan, pi
-from std_msgs.msg import Bool
+'''Enable sqitch class usage. Can be run as standalone, by running this script
+with rosrun, or incorporated into the daqnode script, by calling sample_publish
+inside the main loop'''
 
 class Deadman_Publisher():
     enabled = False
@@ -40,17 +36,19 @@ class Deadman_Publisher():
         self.deadman_pub = rospy.Publisher('enable_move', Bool, queue_size=1)
         rospy.init_node('daqnode')
 
+    def sample_publish(self):
+        input=self.dio_device.d_bit_in(self.port_to_read,0)
+        self.deadman_pub.publish(Bool(data = not input))
+
     def run(self):
         rate = rospy.Rate(self.rate)
-
         while not rospy.is_shutdown():
-            input=self.dio_device.d_bit_in(self.port_to_read,0)
-            self.deadman_pub.publish(Bool(data = not input))
+            self.sample_publish()
             rate.sleep()
 
 if __name__ == '__main__':
     devices = get_daq_device_inventory(InterfaceType.ANY)
     daq_device = DaqDevice(devices[0])
     daq_device.connect(connection_code=0)
-    dp = Deadman_Publisher(daq_device, rate = 10)
+    dp = Deadman_Publisher(daq_device, rate = 100)
     dp.run()
