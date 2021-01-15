@@ -12,6 +12,8 @@ import rospy
 from ur5teleop.msg import daqdata, jointdata
 from math import tan, pi
 
+from deadman_publisher import Deadman_Publisher
+
 def talker():
     pub = rospy.Publisher('daqdata_filtered', jointdata, queue_size=1)
     rospy.init_node('daqnode')
@@ -19,9 +21,6 @@ def talker():
     rospy.set_param("/frequency/sample",fs)
     fc=rospy.get_param("/frequency/corner", default=[2.0, 2.0, 2.0, 5.0, 5.0, 5.0])# default corner frequency
     rospy.set_param("/frequency/corner",fc)
-
-
-
 
     rate = rospy.Rate(fs)
 
@@ -100,6 +99,10 @@ def talker():
         #     pass
         #
         # system('clear')
+
+        #start deadman publisher
+        dp = Deadman_Publisher(daq_device)
+
         print('connected to DAQ and starting publish node')
 
         while not rospy.is_shutdown():
@@ -120,6 +123,7 @@ def talker():
             angular_vels = getvelocity(angles_filtered, dt)
             message = pubprep(angles_filtered, angular_vels, data.sptime, dt)
             pub.publish(message)
+            dp.sample_publish()
             rate.sleep()
 
     finally:
