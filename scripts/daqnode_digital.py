@@ -13,7 +13,7 @@ highest_count = 2**48
 #detects and fixes rollover in the counter
 def simple_counter_rolover(previous_value, input_value):
     diff = input_value - previous_value
-    if np.abs(diff) > 20480: #one revolution
+    if np.abs(diff) > highest_count/2: # one rotation 20480
         if diff > 0:
             output_value = input_value - highest_count
         else:
@@ -37,8 +37,8 @@ class encoder_node():
     encoder_mode = (uldaq.CounterMeasurementMode.ENCODER_X4)
     edge_detection = uldaq.CounterEdgeDetection.RISING_EDGE
     tick_size = uldaq.CounterTickSize.TICK_20ns
-    debounce_mode = uldaq.CounterDebounceMode.NONE
-    debounce_time = uldaq.CounterDebounceTime.DEBOUNCE_0ns
+    debounce_mode = uldaq.CounterDebounceMode.TRIGGER_AFTER_STABLE
+    debounce_time = uldaq.CounterDebounceTime.DEBOUNCE_500ns
     config_flags = uldaq.CConfigScanFlag.DEFAULT
 
     encoders = [0,1,2,3,4,5]
@@ -98,6 +98,7 @@ class encoder_node():
             self.rate.sleep()
             read_time = rospy.Time.now()
             counts = np.array([simple_counter_rolover(self.counts[encoder], self.counter.c_in(encoder)) for encoder in self.encoders])
+            # counts = np.array([self.counter.c_in(encoder) for encoder in self.encoders])
             positions = np.array(counts_to_position(counts))
             filtered_positions = np.array(self.filter.filter(positions))
             dt = read_time - self.last_read_time
