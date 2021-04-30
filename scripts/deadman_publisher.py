@@ -34,7 +34,7 @@ class Deadman_Publisher():
 
         #setup publisher
         self.deadman_pub = rospy.Publisher('enable_move', Bool, queue_size=1)
-        rospy.init_node('daqnode')
+        #rospy.init_node('daqnode')
 
     def sample_publish(self):
         input=self.dio_device.d_bit_in(self.port_to_read,0)

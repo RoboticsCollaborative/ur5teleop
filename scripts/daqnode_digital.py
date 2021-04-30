@@ -8,6 +8,8 @@ import uldaq
 from daq_util import pubprep, counts_to_position, PythonFilter, NumpyFilter
 from ur5teleop.msg import daqdata, jointdata
 
+from deadman_publisher import Deadman_Publisher
+
 #48 bit counter
 highest_count = 2**48
 #detects and fixes rollover in the counter
@@ -38,7 +40,7 @@ class encoder_node():
     edge_detection = uldaq.CounterEdgeDetection.RISING_EDGE
     tick_size = uldaq.CounterTickSize.TICK_20ns
     debounce_mode = uldaq.CounterDebounceMode.TRIGGER_AFTER_STABLE
-    debounce_time = uldaq.CounterDebounceTime.DEBOUNCE_500ns
+    debounce_time = uldaq.CounterDebounceTime.DEBOUNCE_1500ns
     config_flags = uldaq.CConfigScanFlag.DEFAULT
 
     encoders = [0,1,2,3,4,5]
@@ -50,7 +52,7 @@ class encoder_node():
     positions = None
     last_read_time = None
 
-    pub = rospy.Publisher('digital_data', jointdata, queue_size=1)
+    pub = rospy.Publisher('daqdata_filtered', jointdata, queue_size=1)
 
     fc = [10.0, 10.0, 10.0, 10.0, 10.0, 10.0]
     fs = sample_rate
@@ -94,6 +96,10 @@ class encoder_node():
         #TODO initialize filter
         self.positions = np.array(counts_to_position(self.counts))
         self.filter.calculate_initial_values(self.positions)
+
+        #start deadman publisher
+        dp = Deadman_Publisher(self.daq_device)
+
         while not rospy.is_shutdown():
             self.rate.sleep()
             read_time = rospy.Time.now()
@@ -109,6 +115,7 @@ class encoder_node():
             self.last_read_time = read_time
             self.positions = filtered_positions
             self.counts = counts
+            dp.sample_publish()
 
 if __name__ == "__main__":
 
