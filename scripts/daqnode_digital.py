@@ -54,8 +54,12 @@ class encoder_node():
 
     pub = rospy.Publisher('daqdata_filtered', jointdata, queue_size=1)
 
-    fc = [10.0, 10.0, 10.0, 10.0, 10.0, 10.0]
-    fs = sample_rate
+    # fc = [10.0, 10.0, 10.0, 10.0, 10.0, 10.0]
+    # fs = sample_rate
+    fs=rospy.get_param("/frequency/sample", default=100.0) # default sample freqency in hz unless defined presartup parameter
+    rospy.set_param("/frequency/sample",fs)
+    fc=rospy.get_param("/frequency/corner", default=[5.0, 5.0, 5.0, 10.0, 10.0, 10.0])# default corner frequency
+    rospy.set_param("/frequency/corner",fc)
     filter = PythonFilter(fc,fs)
     # filter = NumpyFilter(fc,fs)
 
