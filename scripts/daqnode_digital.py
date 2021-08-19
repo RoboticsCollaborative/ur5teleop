@@ -9,6 +9,7 @@ from daq_util import pubprep, counts_to_position, PythonFilter, NumpyFilter
 from ur5teleop.msg import daqdata, jointdata
 
 from deadman_publisher import Deadman_Publisher
+from jogging_publisher import Jogging_Publisher
 
 #48 bit counter
 highest_count = 2**48
@@ -103,6 +104,7 @@ class encoder_node():
 
         #start deadman publisher
         dp = Deadman_Publisher(self.daq_device)
+        jp = Jogging_Publisher(self.daq_device)
 
         while not rospy.is_shutdown():
             self.rate.sleep()
@@ -120,6 +122,7 @@ class encoder_node():
             self.positions = filtered_positions
             self.counts = counts
             dp.sample_publish()
+            jp.sample_publish()
 
 if __name__ == "__main__":
 
