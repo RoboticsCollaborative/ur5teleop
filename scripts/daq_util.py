@@ -1,4 +1,5 @@
 from ur5teleop.msg import daqdata, jointdata
+from geometry_msgs.msg import Pose, Twist
 import numpy as np
 
 def filtercoeffs(fs, fc):
@@ -38,6 +39,29 @@ def pubprep(angles,vels,sptime,dtsecs):
 
     msg.encoder6.pos=angles[5]
     msg.encoder6.vel=vels[5]
+
+    return msg
+
+def pubPose(pos, ori):
+    msg = Pose()
+    msg.position.x = pos[0]
+    msg.position.y = pos[1]
+    msg.position.z = pos[2]
+    msg.orientation.x = ori[0]
+    msg.orientation.y = ori[1]
+    msg.orientation.z = ori[2]
+    msg.orientation.w = ori[3]
+
+    return msg
+
+def pubTwist(vel):
+    msg = Twist()
+    msg.linear.x = vel[0]
+    msg.linear.y = vel[1]
+    msg.linear.z = vel[2]
+    msg.angular.x = vel[3]
+    msg.angular.y = vel[4]
+    msg.angular.z = vel[5]
 
     return msg
 

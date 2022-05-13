@@ -1,15 +1,26 @@
 #!/usr/bin/env python
 
 import rospy
+import rospkg
 import numpy as np
 import time
 import uldaq
 
-from daq_util import pubprep, counts_to_position, PythonFilter, NumpyFilter
+from daq_util import counts_to_position, PythonFilter, NumpyFilter, pubPose, pubTwist
+from scipy.spatial.transform import Rotation as R
 from ur5teleop.msg import daqdata, jointdata
+from geometry_msgs.msg import Pose, Twist
 
 from deadman_publisher import Deadman_Publisher
-from jogging_publisher import Jogging_Publisher
+
+# Import the module
+from urdf_parser_py.urdf import URDF
+from pykdl_utils.kdl_parser import kdl_tree_from_urdf_model
+from pykdl_utils.kdl_kinematics import KDLKinematics
+
+r = rospkg.RosPack()
+path = r.get_path('ur5teleop')
+dummy_arm = URDF.from_xml_file(path+"/config/dummy_arm.urdf")
 
 #48 bit counter
 highest_count = 2**48
@@ -53,7 +64,8 @@ class encoder_node():
     positions = None
     last_read_time = None
 
-    pub = rospy.Publisher('daqdata_filtered', jointdata, queue_size=1)
+    pubp = rospy.Publisher('dummy_arm_pose', Pose, queue_size=1)
+    pubv = rospy.Publisher('dummy_arm_twist', Twist, queue_size=1)
 
     # fc = [10.0, 10.0, 10.0, 10.0, 10.0, 10.0]
     # fs = sample_rate
@@ -63,6 +75,10 @@ class encoder_node():
     rospy.set_param("/frequency/corner",fc)
     filter = PythonFilter(fc,fs)
     # filter = NumpyFilter(fc,fs)
+
+    tree = kdl_tree_from_urdf_model(dummy_arm)
+    chai = tree.getChain("base_link", "wrist_3_link")
+    kdl_kin = KDLKinematics(dummy_arm, "base_link", "wrist_3_link")
 
     def __init__(self):
         rospy.on_shutdown(self.safe_shutdown)
@@ -104,7 +120,6 @@ class encoder_node():
 
         #start deadman publisher
         dp = Deadman_Publisher(self.daq_device)
-        jp = Jogging_Publisher(self.daq_device)
 
         while not rospy.is_shutdown():
             self.rate.sleep()
@@ -116,13 +131,20 @@ class encoder_node():
             dt = read_time - self.last_read_time
             dt_seconds = dt.secs + dt.nsecs * 1e-9
             velocities = (filtered_positions-self.positions)/dt_seconds
-            # print(filtered_positions)
-            self.pub.publish(pubprep(filtered_positions, velocities, read_time, dt_seconds))
+            Ja = self.kdl_kin.jacobian(filtered_positions)
+            FK = self.kdl_kin.forward(filtered_positions)
+            Rt = FK[:3,:3]
+            rot = R.from_dcm(Rt)
+            vel_cartesian = np.array(np.matmul(Ja, velocities)).reshape(-1)
+            pos_cartesian = np.array((FK[:3,3])).reshape(-1)
+            ori_quaternion = rot.as_quat()
+            # print(pos_cartesian[0])
+            self.pubp.publish(pubPose(pos_cartesian,ori_quaternion))
+            self.pubv.publish(pubTwist(vel_cartesian))
             self.last_read_time = read_time
             self.positions = filtered_positions
             self.counts = counts
             dp.sample_publish()
-            jp.sample_publish()
 
 if __name__ == "__main__":
 
